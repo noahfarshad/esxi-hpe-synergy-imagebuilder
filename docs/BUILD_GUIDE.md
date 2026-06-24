@@ -14,7 +14,15 @@ Two things changed that make the manual build the right approach:
 
 ## What "supported" means here
 
-Per HPE's documentation, VMware ESXi patches obtained directly from Broadcom may be installed on HPE Synergy systems, provided they do not cross a VMware ESXi "update" boundary (for example, 8.0 Update 2 to 8.0 Update 3) and do not introduce drivers that conflict with the supported HPE Synergy software release. An HPE AddOn from the same major ESXi version can be combined with a newer base patch within that version. Always confirm against the current HPE VMware Recipe and your SSP for your specific environment.
+Per HPE's documentation, VMware ESXi patches obtained directly from Broadcom may be installed on HPE Synergy systems, provided they do not cross a VMware ESXi release boundary and do not introduce drivers that conflict with the supported HPE Synergy software release. **The boundary rule differs by ESXi version:** for ESXi 8.0 and older, the line is a VMware "update" release (for example, 8.0 Update 2 to 8.0 Update 3); for ESXi 9.0 and newer, it is a VMware "minor" release. An HPE AddOn can be combined with a newer base patch within the same release family — but a 9.0.x-validated AddOn on a 9.1 base crosses the minor boundary and is an unsupported combination, even though Image Builder will build it. Always confirm against the current HPE VMware Recipe and your SSP for your specific environment.
+
+### Validate the HCL by device ID near a boundary
+
+When you're near a version boundary or unsure whether the AddOn covers your hardware, validate the I/O devices (NICs, HBAs) before trusting the build. Check each device's VID (vendor ID), DID (device ID), SVID (subsystem vendor ID), and SSID (subsystem ID) against the driver set in the SSP/AddOn you're merging. A device whose IDs aren't covered won't work regardless of what the build reports. (Concrete example from HPE's 9.x notes: the Synergy 3830C 16Gb FC HBA is not supported on ESXi 9.x — exactly the kind of thing an HCL check surfaces before install.)
+
+### Where the drivers come from is changing
+
+This guide uses the standalone HPE Synergy AddOn depot, which works today. HPE's stated direction (following the SSP 2026.01.02 deprecation of the Synergy Custom Images and Certified Vendor Add-ons tooling) is that supported driver/utility components increasingly ship inside the HPE Synergy Service Pack (SSP) rather than as a separate AddOn download. The Image Builder combine mechanics in this repo stay the same — what may change over time is whether you source the driver VIBs from a standalone AddOn zip or extract them from the SSP bundle.
 
 > This repository is community tooling, not an HPE or Broadcom product. Validate support boundaries for your environment against HPE's official documentation before deploying to production.
 

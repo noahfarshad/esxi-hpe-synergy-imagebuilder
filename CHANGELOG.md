@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-06-24
+
+### Changed
+
+- **`docs/BUILD_GUIDE.md`** — Clarified the ESXi version-boundary rule: 8.0-and-older
+  uses an "update" release boundary, 9.0-and-newer uses a stricter "minor" release
+  boundary. A 9.0.x-validated AddOn on a 9.1 base crosses that boundary and is
+  unsupported even though Image Builder will build it.
+- Added guidance on validating the HCL by device ID (VID/DID/SVID/SSID) when near a
+  version boundary, with the Synergy 3830C 16Gb FC HBA / ESXi 9.x example.
+- Documented that HPE's direction is for driver components to ship inside the SSP
+  rather than as standalone AddOn downloads, following the SSP 2026.01.02 deprecation.
+
 ## [1.0.0] - 2026-06-24
 
 ### Initial Release
@@ -57,4 +70,5 @@ any HPE Synergy boot-from-SAN environment, and is now the HPE-supported path for
 following the deprecation of pre-built Synergy custom ISOs (HPE Customer Notice
 a00156316, SSP 2026.01.xx).
 
+[1.0.1]: https://github.com/noahfarshad/esxi-hpe-synergy-imagebuilder/releases/tag/v1.0.1
 [1.0.0]: https://github.com/noahfarshad/esxi-hpe-synergy-imagebuilder/releases/tag/v1.0.0
