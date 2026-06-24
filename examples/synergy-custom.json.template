@@ -1,0 +1,12 @@
+{
+  "base_image": {
+    "version": "9.0.2-0.25148076"
+  },
+  "add_on": {
+    "name": "HPE-Custom-Syn-AddOn",
+    "version": "900.0.0.12.3.5-5"
+  },
+  "components": null,
+  "hardware_support": null,
+  "solutions": null
+}
