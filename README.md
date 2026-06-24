@@ -80,6 +80,16 @@ For current AddOn/base-image mappings: <https://www.hpe.com/us/en/servers/hpe-es
 
 Community tooling, not an HPE or Broadcom product. Validate support boundaries for your environment against HPE's official documentation before deploying to production. See [docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md) for the "what supported means" details.
 
+## Companion tool: getting the drivers out of the SPP
+
+This repo merges a VMware base depot with HPE driver content into an ISO — but with HPE retiring standalone AddOn depots, those drivers increasingly live inside the HPE Service Pack (SPP), mixed in with every other OS and with no per-release grouping in the SPP content list.
+
+[**spp-esxi-vib-extractor**](https://github.com/noahfarshad/spp-esxi-vib-extractor) is the front-half of the workflow: point it at an extracted SPP and it pulls out the ESXi VIBs, groups them by release (`esxi-9.0/`, `esxi-8.0/`, …), and emits a manifest with the OS-release column the SPP report lacks. Feed its grouped output straight into the build script here.
+
+```
+HPE SPP ──► spp-esxi-vib-extractor ──► grouped VIBs by release ──► (this repo) ──► custom ESXi ISO
+```
+
 ## Story
 
 The full background on why this exists and how it came together is written up at [essential.coach](https://essential.coach/custom-esxi-iso-hpe-synergy/).
