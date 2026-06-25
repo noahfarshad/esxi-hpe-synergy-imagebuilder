@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-25
+
+### Added
+
+- **Dual output: ISO and/or offline ZIP bundle.** New `-OutputFormat Iso|Bundle|Both`
+  parameter (default `Both`). The bundle is an offline depot ZIP that imports into
+  vSphere Lifecycle Manager (vLCM) for ongoing patch/image management, alongside the
+  bootable ISO for fresh SAN-boot installs. Both are exported from the same image
+  profile in one run.
+- **`-ExtraVibsFolder`** — add extra/optional VIBs from a folder on top of the
+  base + AddOn. Designed to take a per-release folder from the companion
+  [spp-esxi-vib-extractor](https://github.com/noahfarshad/spp-esxi-vib-extractor)
+  (e.g. `esxi-9.0\`). Every `*.zip` in the folder is added and merged.
+- **`-ExcludeVibs`** — remove specific VIBs by name from the final image (e.g. when
+  an HCL check shows a driver isn't needed or isn't compatible on your hardware).
+  Reports a clear message and guidance when a removal fails due to a dependency.
+- **`-ProfileName` / `-Vendor`** — optional control over the cloned image profile
+  name and vendor stamp.
+
+### Changed
+
+- **Reworked around the image-profile model.** The build now clones the base image
+  profile, merges the AddOn (and any extra) packages, applies exclusions, then
+  exports — replacing the previous one-shot `New-IsoImage` call. This is what makes
+  the add/exclude/dual-export features possible. The PowerCLI session depots are
+  cleaned up in a `finally` block so re-runs start fresh.
+- Still PowerShell 5.1-compatible (no PS7-only syntax); requires PowerCLI /
+  VMware.ImageBuilder with Python configured.
+
+### Compatibility
+
+- Existing callers: the script no longer takes `-SoftwareSpec`, and `-Destination`
+  is now a path WITHOUT extension (the script appends `.iso`/`.zip`). See the updated
+  examples in the script header and README. `Write-SoftwareSpec.ps1` remains for
+  reference but is no longer required by the default build path.
+
 ## [1.0.1] - 2026-06-24
 
 ### Changed
@@ -70,5 +106,6 @@ any HPE Synergy boot-from-SAN environment, and is now the HPE-supported path for
 following the deprecation of pre-built Synergy custom ISOs (HPE Customer Notice
 a00156316, SSP 2026.01.xx).
 
+[1.1.0]: https://github.com/noahfarshad/esxi-hpe-synergy-imagebuilder/releases/tag/v1.1.0
 [1.0.1]: https://github.com/noahfarshad/esxi-hpe-synergy-imagebuilder/releases/tag/v1.0.1
 [1.0.0]: https://github.com/noahfarshad/esxi-hpe-synergy-imagebuilder/releases/tag/v1.0.0

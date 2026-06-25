@@ -18,12 +18,12 @@ This repo automates the manual combine: VMware base depot + HPE Synergy AddOn de
 ```
 esxi-hpe-synergy-imagebuilder/
 ├── scripts/
-│   ├── Build-CustomEsxiIso.ps1      # main build: combine depots → ISO
+│   ├── Build-CustomEsxiIso.ps1      # main build: combine depots → ISO and/or bundle
 │   ├── Validate-IsoVibs.ps1         # confirm all AddOn VIBs merged
-│   ├── Write-SoftwareSpec.ps1       # write the JSON spec WITHOUT a BOM
+│   ├── Write-SoftwareSpec.ps1       # (optional) write a BOM-free JSON spec
 │   └── post-install-validation.sh   # run on the ESXi host after install
 ├── examples/
-│   └── synergy-custom.json.template # software spec template
+│   └── synergy-custom.json.template # software spec template (optional path)
 ├── docs/
 │   ├── BUILD_GUIDE.md               # full step-by-step walkthrough
 │   └── VIB_Reference.md             # what's in the HPE AddOn + why FC matters
@@ -34,29 +34,96 @@ esxi-hpe-synergy-imagebuilder/
 
 ## Quick start
 
+**One-time setup** — install PowerCLI and point it at Python (Image Builder needs it):
+
 ```powershell
-# 1. Install PowerCLI + point it at Python (see docs/BUILD_GUIDE.md for Python setup)
 Install-Module -Name VMware.PowerCLI -Scope CurrentUser -AllowClobber
+# See docs/BUILD_GUIDE.md for the one-line Python path config Image Builder requires.
+```
 
-# 2. Write the software spec (BOM-free)
-.\scripts\Write-SoftwareSpec.ps1 `
-    -OutFile "C:\iso\synergy-custom.json" `
-    -BaseVersion "9.0.2-0.25148076" `
-    -AddonName "HPE-Custom-Syn-AddOn" `
-    -AddonVersion "900.0.0.12.3.5-5"
+Then pick the example that matches what you need. Every example uses the same two depot zips you provide (see "You provide the depots" below). `-Destination` is a path **without** an extension — the script adds `.iso` and/or `.zip` for you.
 
-# 3. Build the ISO
+**1. The common case — build both a bootable ISO and a vLCM bundle:**
+
+```powershell
 .\scripts\Build-CustomEsxiIso.ps1 `
-    -BaseDepot "C:\iso\VMware-ESXi-9.0.2.0.25148076-depot.zip" `
+    -BaseDepot  "C:\iso\VMware-ESXi-9.0.2.0.25148076-depot.zip" `
     -AddonDepot "C:\iso\HPE-900.0.0.12.3.5.5-Oct2025-Synergy-Addon-depot.zip" `
-    -SoftwareSpec "C:\iso\synergy-custom.json" `
-    -Destination "C:\iso\VMware-ESX-9.0.2-HPE-Synergy-Custom.iso"
+    -Destination "C:\iso\Synergy-9.0.2-Custom" `
+    -AcceptanceLevel PartnerSupported
+```
 
-# 4. Validate every AddOn VIB merged before deploying
+Produces `Synergy-9.0.2-Custom.iso` (boot it to install) **and** `Synergy-9.0.2-Custom.zip` (import into vSphere Lifecycle Manager).
+
+**2. Just the bootable ISO** (fresh installs / SAN boot only):
+
+```powershell
+.\scripts\Build-CustomEsxiIso.ps1 `
+    -BaseDepot  "C:\iso\VMware-ESXi-9.0.2.0.25148076-depot.zip" `
+    -AddonDepot "C:\iso\HPE-900.0.0.12.3.5.5-Oct2025-Synergy-Addon-depot.zip" `
+    -Destination "C:\iso\Synergy-9.0.2-Custom" `
+    -OutputFormat Iso `
+    -AcceptanceLevel PartnerSupported
+```
+
+**3. Just the offline bundle** (for importing into vLCM, no ISO):
+
+```powershell
+.\scripts\Build-CustomEsxiIso.ps1 `
+    -BaseDepot  "C:\iso\VMware-ESXi-9.0.2.0.25148076-depot.zip" `
+    -AddonDepot "C:\iso\HPE-900.0.0.12.3.5.5-Oct2025-Synergy-Addon-depot.zip" `
+    -Destination "C:\iso\Synergy-9.0.2-lcm" `
+    -OutputFormat Bundle `
+    -AcceptanceLevel PartnerSupported
+```
+
+**4. Add extra drivers from an SPP** (using the companion [spp-esxi-vib-extractor](https://github.com/noahfarshad/spp-esxi-vib-extractor) output):
+
+```powershell
+.\scripts\Build-CustomEsxiIso.ps1 `
+    -BaseDepot  "C:\iso\VMware-ESXi-9.0.2.0.25148076-depot.zip" `
+    -AddonDepot "C:\iso\HPE-900.0.0.12.3.5.5-Oct2025-Synergy-Addon-depot.zip" `
+    -ExtraVibsFolder "C:\spp-extract\esxi-9.0" `
+    -Destination "C:\iso\Synergy-9.0.2-Custom" `
+    -AcceptanceLevel PartnerSupported
+```
+
+`-ExtraVibsFolder` adds every `*.zip` offline bundle in that folder. Keep extra VIBs to a **single OEM vendor** — mixing vendors can silently produce an image that builds but doesn't work.
+
+**5. Exclude specific VIBs** (e.g. an HCL check shows a driver isn't needed or compatible):
+
+```powershell
+.\scripts\Build-CustomEsxiIso.ps1 `
+    -BaseDepot  "C:\iso\VMware-ESXi-9.0.2.0.25148076-depot.zip" `
+    -AddonDepot "C:\iso\HPE-900.0.0.12.3.5.5-Oct2025-Synergy-Addon-depot.zip" `
+    -ExcludeVibs "qedf","qedi" `
+    -Destination "C:\iso\Synergy-9.0.2-Custom" `
+    -AcceptanceLevel PartnerSupported
+```
+
+Removes the named VIBs by name. If a removal fails because another VIB depends on it, the script tells you which — exclude the dependent one too, or leave it in.
+
+**6. Validate the merge** before you deploy (always do this):
+
+```powershell
 .\scripts\Validate-IsoVibs.ps1 `
-    -BaseDepot "C:\iso\VMware-ESXi-9.0.2.0.25148076-depot.zip" `
+    -BaseDepot  "C:\iso\VMware-ESXi-9.0.2.0.25148076-depot.zip" `
     -AddonDepot "C:\iso\HPE-900.0.0.12.3.5.5-Oct2025-Synergy-Addon-depot.zip"
 ```
+
+### Parameter reference
+
+| Parameter | Required | What it does |
+|---|---|---|
+| `-BaseDepot` | yes | Path to the VMware base ESXi depot zip |
+| `-AddonDepot` | yes | Path to the HPE Synergy AddOn depot zip |
+| `-Destination` | yes | Output path **without** extension; script adds `.iso`/`.zip` |
+| `-OutputFormat` | no | `Iso`, `Bundle`, or `Both` (default `Both`) |
+| `-ExtraVibsFolder` | no | Folder of extra offline-bundle zips to add (single OEM) |
+| `-ExcludeVibs` | no | One or more VIB names to remove, e.g. `"qedf","qedi"` |
+| `-AcceptanceLevel` | no | Use `PartnerSupported` for HPE's partner-signed VIBs |
+| `-ProfileName` | no | Custom image-profile name (auto-generated otherwise) |
+| `-Vendor` | no | Vendor stamp on the profile (default `essential.coach`) |
 
 Full walkthrough with dependency setup, gotchas, and references: [docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md).
 
@@ -71,9 +138,10 @@ For current AddOn/base-image mappings: <https://www.hpe.com/us/en/servers/hpe-es
 
 ## The biggest time-wasters (read these before you start)
 
-- **JSON spec needs UTF-8 *without* BOM.** PowerShell's `Out-File` adds a BOM; `New-IsoImage` rejects it with a cryptic error. Use the `Write-SoftwareSpec.ps1` helper.
-- **PowerCLI resolves relative paths from your user profile dir, not CWD.** Use absolute paths.
-- **Acceptance-level error?** Add `-AcceptanceLevel PartnerSupported` (HPE VIBs are partner-signed).
+- **PowerCLI needs Python for Image Builder.** If you see "Could not initialize the VMware.ImageBuilder PowerCLI module," set the Python path once with `Set-PowerCLIConfiguration -PythonPath`. See [docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md).
+- **PowerCLI resolves relative paths from your user profile dir, not CWD.** The script resolves everything to absolute paths for you, but if you call the cmdlets directly, use absolute paths.
+- **Acceptance-level error?** Add `-AcceptanceLevel PartnerSupported` (HPE VIBs are partner-signed, not VMware-certified).
+- **Mixing OEM vendors in `-ExtraVibsFolder`** can silently produce an image that builds but doesn't work. Keep extra VIBs to one hardware vendor per build.
 - **FC driver version is load-bearing for SAN boot.** A custom image can drop support for a specific HBA across revisions. Test one host, confirm the boot LUN survives a reboot, then go fleet-wide.
 
 ## Disclaimer
