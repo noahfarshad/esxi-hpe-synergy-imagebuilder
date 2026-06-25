@@ -5,15 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`Build-VlcmBundle.ps1`** — builds a vLCM-compliant offline bundle via
+  `New-OfflineBundle`, which emits the full depot descriptor (vendor block,
+  content-type, productId, per-VIB metadata) that vSphere Lifecycle Manager
+  requires. Auto-discovers base/AddOn versions from the depots. Use this when an
+  `Export-EsxImageProfile` bundle fails to import into vLCM 9.x (Broadcom KB 424708).
+- **`Inspect-BundleDeep.ps1`** — forensic comparison of two depots/bundles,
+  including the contents of the nested metadata zip, with an attribute-presence
+  matrix (vendor code/name, content-type, productId, checksums). Useful to confirm
+  a bundle's structure matches a known-good depot before import.
+
+### Notes
+
+- The `New-OfflineBundle` output has been verified to match a known-good depot's
+  descriptor structure at ESXi 9.0.2. The actual vLCM **9.1** import (where the
+  `vcfVersion` attribute applies) is still being confirmed against a live vLCM 9.1
+  environment.
+
 ## [1.1.0] - 2026-06-25
 
 ### Added
 
 - **Dual output: ISO and/or offline ZIP bundle.** New `-OutputFormat Iso|Bundle|Both`
-  parameter (default `Both`). The bundle is an offline depot ZIP that imports into
-  vSphere Lifecycle Manager (vLCM) for ongoing patch/image management, alongside the
-  bootable ISO for fresh SAN-boot installs. Both are exported from the same image
-  profile in one run.
+  parameter (default `Both`). The bundle is an offline depot ZIP for `esxcli` /
+  Update Manager workflows. Note: for importing into vSphere Lifecycle Manager
+  (vLCM), use `Build-VlcmBundle.ps1` — the `Export-EsxImageProfile` bundle this
+  produces lacks the descriptor metadata vLCM 9.x requires (see Unreleased / KB 424708).
+  Both ISO and bundle are exported from the same image profile in one run.
 - **`-ExtraVibsFolder`** — add extra/optional VIBs from a folder on top of the
   base + AddOn. Designed to take a per-release folder from the companion
   [spp-esxi-vib-extractor](https://github.com/noahfarshad/spp-esxi-vib-extractor)

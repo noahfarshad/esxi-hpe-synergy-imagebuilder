@@ -19,6 +19,8 @@ This repo automates the manual combine: VMware base depot + HPE Synergy AddOn de
 esxi-hpe-synergy-imagebuilder/
 ├── scripts/
 │   ├── Build-CustomEsxiIso.ps1      # main build: combine depots → ISO and/or bundle
+│   ├── Build-VlcmBundle.ps1         # vLCM-compliant bundle via New-OfflineBundle
+│   ├── Inspect-BundleDeep.ps1       # forensic compare of two depots (descriptor + metadata)
 │   ├── Validate-IsoVibs.ps1         # confirm all AddOn VIBs merged
 │   ├── Write-SoftwareSpec.ps1       # (optional) write a BOM-free JSON spec
 │   └── post-install-validation.sh   # run on the ESXi host after install
@@ -126,6 +128,37 @@ Removes the named VIBs by name. If a removal fails because another VIB depends o
 | `-Vendor` | no | Vendor stamp on the profile (default `essential.coach`) |
 
 Full walkthrough with dependency setup, gotchas, and references: [docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md).
+
+## vSphere Lifecycle Manager (vLCM) bundles — read this before importing
+
+There are two kinds of "offline bundle," and they are not interchangeable:
+
+- **An esxcli / Update Manager depot** — what `Build-CustomEsxiIso.ps1 -OutputFormat Bundle` produces (via `Export-EsxImageProfile`). Fine for `esxcli software` installs and classic Update Manager.
+- **A vLCM-importable depot** — what vSphere Lifecycle Manager's image management requires. This carries a fuller depot descriptor (vendor block, content-type, productId entries, and per-component metadata) that `Export-EsxImageProfile` does **not** emit.
+
+If you import an `Export-EsxImageProfile` bundle into vLCM (especially on 9.x) you may hit:
+
+> A depot is inaccessible or has invalid contents. Make sure an official depot source is used...
+
+This is a known limitation (see Broadcom KB 424708 re: the `vcfVersion` attribute on recent 9.x depots). The fix is to build the bundle with `New-OfflineBundle`, which generates the full vLCM descriptor from depots + a software spec.
+
+### `Build-VlcmBundle.ps1` — the vLCM-compliant path
+
+```powershell
+# Auto-discovers base/AddOn versions from the depots; just point at the two zips.
+.\scripts\Build-VlcmBundle.ps1 `
+    -BaseDepot  ".\VMware-ESXi-9.1.0...-depot.zip" `
+    -AddonDepot ".\HPE-910...-Synergy-Addon-depot.zip" `
+    -Destination ".\Synergy-9.1-lcm.zip"
+```
+
+The base and AddOn must be a **matched pair** (a 9.1 base needs the 910-series AddOn, not 900); `New-OfflineBundle` enforces this and the script reports a clear message if they don't match. You can override the vendor stamp with `-VendorName` / `-VendorCode` (the code must be exactly 3 alphanumeric characters, e.g. `ess`).
+
+> **Validation status:** the output has been verified to match a known-good depot's descriptor structure (vendor block, content-type, productId, per-VIB SHA-256 checksums) at ESXi 9.0.2. The actual vLCM **9.1** import — where the `vcfVersion` attribute applies — is still being confirmed against a live vLCM 9.1 environment. Use `scripts/Inspect-BundleDeep.ps1` to compare your bundle against a known-good depot and confirm the structure on your version.
+
+### Already have a stock image?
+
+HPE publishes prebuilt ProLiant/Synergy custom images **and** vLCM offline bundles on the Broadcom portal. If you need the **stock** HPE image (no exclusions or extra drivers), download that bundle and import it directly — no build required. This tool is for when you need a **custom** image.
 
 ## You provide the depots
 
