@@ -20,6 +20,7 @@ esxi-hpe-synergy-imagebuilder/
 ├── scripts/
 │   ├── Build-CustomEsxiIso.ps1      # main build: combine depots → ISO and/or bundle
 │   ├── Build-VlcmBundle.ps1         # vLCM-compliant bundle via New-OfflineBundle
+│   ├── Build-VlcmComponentBundle.ps1 # vLCM bundle: base + a standalone driver component
 │   ├── Inspect-BundleDeep.ps1       # forensic compare of two depots (descriptor + metadata)
 │   ├── Validate-IsoVibs.ps1         # confirm all AddOn VIBs merged
 │   ├── Write-SoftwareSpec.ps1       # (optional) write a BOM-free JSON spec
@@ -156,9 +157,30 @@ The base and AddOn must be a **matched pair** (a 9.1 base needs the 910-series A
 
 > **Validation status:** the output has been verified to match a known-good depot's descriptor structure (vendor block, content-type, productId, per-VIB SHA-256 checksums) at ESXi 9.0.2. The actual vLCM **9.1** import — where the `vcfVersion` attribute applies — is still being confirmed against a live vLCM 9.1 environment. Use `scripts/Inspect-BundleDeep.ps1` to compare your bundle against a known-good depot and confirm the structure on your version.
 
+### Add a single driver to a stock base — `Build-VlcmComponentBundle.ps1`
+
+Common case: the base image already has every driver you need *except one* (e.g. an HCL check flags a NIC driver that isn't inbox). You don't need a full vendor AddOn — just the base plus that one driver component, as a vLCM-importable bundle.
+
+```powershell
+# Point at the base + an HPE driver SoftPaq (cp######.zip); name the driver you need.
+.\scripts\Build-VlcmComponentBundle.ps1 `
+    -BaseDepot ".\VMware-ESXi-9.1.0...-depot.zip" `
+    -ComponentDepot ".\cp068895.zip" `
+    -IncludeComponents "qedentv" `
+    -Destination ".\esxi-9.1-plus-qedentv.zip"
+```
+
+- **HPE SoftPaq auto-unwrap:** HPE `cp######.zip` driver downloads wrap the real offline bundle in a nested zip. Point `-ComponentDepot` at the outer SoftPaq and the script finds and uses the inner depot.
+- **Components vs VIBs:** a *component* is a bundle of VIBs. `cp068895` ships one component (`MRVL-E4-CNA-Driver-Bundle`) carrying four VIBs (`qedentv`, `qedf`, `qedi`, `qedrntv`). `-IncludeComponents "qedentv"` matches the VIB name and pulls in the component that contains it — so the three sibling VIBs come along too. You include/exclude whole components, not individual VIBs.
+- Omit `-IncludeComponents` to include every component in the driver depot.
+
+> **Validation status:** verified to build, and the output matches a known-good ESXi 9.1 base depot's descriptor structure on every measured attribute (vendor block, content-type, productId, softwareSpec, per-VIB SHA-256 checksums). A driver built for the 9.0 OEM line was accepted onto a 9.1 base (the base component declares both 9.0 and 9.1 platform support). The actual vLCM **9.1 import** is still being confirmed against a live environment. Verify your own output with `scripts/Inspect-BundleDeep.ps1` against a known-good depot.
+
 ### Already have a stock image?
 
 HPE publishes prebuilt ProLiant/Synergy custom images **and** vLCM offline bundles on the Broadcom portal. If you need the **stock** HPE image (no exclusions or extra drivers), download that bundle and import it directly — no build required. This tool is for when you need a **custom** image.
+
+For a single extra driver, you can also skip the build entirely: import the driver `cp######.zip` directly in **Lifecycle Manager → Actions → Import Updates**, then add the component to the cluster image and compose. For a POC that's often the simplest path.
 
 ## You provide the depots
 

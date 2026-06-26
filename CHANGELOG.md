@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   content-type, productId, per-VIB metadata) that vSphere Lifecycle Manager
   requires. Auto-discovers base/AddOn versions from the depots. Use this when an
   `Export-EsxImageProfile` bundle fails to import into vLCM 9.x (Broadcom KB 424708).
+- **`Build-VlcmComponentBundle.ps1`** — builds a vLCM-compliant bundle from a
+  base depot + one or more standalone driver components (no vendor AddOn), for the
+  common case of adding a single HCL-required driver to a stock base. Auto-unwraps
+  HPE SoftPaqs (cp######.zip) to the inner offline bundle, and lets you pick which
+  component(s) to include by VIB name. Verified at ESXi 9.1: builds, and the output
+  matches a known-good 9.1 depot's descriptor structure; live vLCM 9.1 import pending.
 - **`Inspect-BundleDeep.ps1`** — forensic comparison of two depots/bundles,
   including the contents of the nested metadata zip, with an attribute-presence
   matrix (vendor code/name, content-type, productId, checksums). Useful to confirm
